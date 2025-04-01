@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>{% block title %} Benutzerprofil bearbeiten: {{ user['name'] }} {% endblock %}</h1>
+
+<form method="post">
+    <div class="form-group">
+        <label for="name">Name</label>         
+        <input type="text" name="name"
+               placeholder="Name" class="form-control"
+               value="{{ user['name'] }}"></input>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Day</th>
+                <th>Time of Day</th>
+                <th>Red Pills</th>
+                <th>Blue Pills</th>
+                <th>Green Pills</th>
+                <th>Yellow Pills</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                {% for time in ['Morning', 'Noon', 'Evening', 'Night'] %}
+                <tr>
+                    {% if loop.first %}
+                    <td rowspan="4">{{ day }}</td>
+                    {% endif %}
+                    
+                    <td>{{ time }}</td>
+                    <td><input type="number" name="{{ day }}_{{ time|lower }}_red" class="form-control" value="{{ user_plans[day][time]['red'] }}"></td>
+                    <td><input type="number" name="{{ day }}_{{ time|lower }}_blue" class="form-control" value="{{ user_plans[day][time]['blue'] }}"></td>
+                    <td><input type="number" name="{{ day }}_{{ time|lower }}_green" class="form-control" value="{{ user_plans[day][time]['green'] }}"></td>
+                    <td><input type="number" name="{{ day }}_{{ time|lower }}_yellow" class="form-control" value="{{ user_plans[day][time]['yellow'] }}"></td>
+                </tr>
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+    </div>
+</form>
+{% endblock %}

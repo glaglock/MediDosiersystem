@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1> {% block title %} Benutzerprofil von {{ user['name'] }} {% endblock %}</h1>
+<a href="{{ url_for('deleteUser', user_id=user['user_id']) }}" class="btn btn-danger" style="float: right;">Delete User</a>
+<a href="{{ url_for('editUser', user_id=user['user_id']) }}" class="btn btn-warning" style="float: right; margin-left: 10px;">Edit User</a>
+
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Day</th>
+            <th>Time of the Day</th>
+            <th>Red Pills</th>
+            <th>Blue Pills</th>
+            <th>Green Pills</th>
+            <th>Yellow Pills</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+            {% for time in ['Morning', 'Noon', 'Evening', 'Night'] %}
+            <tr>
+                {% if loop.first %}
+                <td rowspan="4">{{ day }}</td>
+                {% endif %}
+                <td>{{ time }}</td>
+                <td>{{ user_plans[day][time]['red'] }}</td>
+                <td>{{ user_plans[day][time]['blue'] }}</td>
+                <td>{{ user_plans[day][time]['green'] }}</td>
+                <td>{{ user_plans[day][time]['yellow'] }}</td>
+
+            </tr>
+            {% endfor %}
+        {% endfor %}
+    </tbody>
+</table>
+
+{% endblock %}
+

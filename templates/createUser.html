@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>{% block title %} Neues Benutzerprofil anlegen {% endblock %}</h1>
+
+<form method="post">
+    <div class="form-group">
+        <label for="name">Name</label>         
+        <input type="text" name="name"
+               placeholder="Name" class="form-control"
+               value="{{ request.form.get('name', '') }}"></input>
+    </div>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Day</th>
+                <th>Time of Day</th>
+                <th>Red Pills</th>
+                <th>Blue Pills</th>
+                <th>Green Pills</th>
+                <th>Yellow Pills</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for day in ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] %}
+                {% for time in ['Morning', 'Noon', 'Evening', 'Night'] %}
+                <tr>
+
+                    {% if loop.first %}
+                    <td rowspan="4">{{ day }}</td>
+                    {% endif %}
+                    
+                    <td>{{ time }}</td>
+                    <td><input type="number" name="{{ day }}_{{ time|lower }}_red" class="form-control" value="{{ request.form.get(day + '_' + time|lower + '_red', '') }}"></td>
+                    <td><input type="number" name="{{ day }}_{{ time|lower }}_blue" class="form-control" value="{{ request.form.get(day + '_' + time|lower + '_blue', '') }}"></td>
+                    <td><input type="number" name="{{ day }}_{{ time|lower }}_green" class="form-control" value="{{ request.form.get(day + '_' + time|lower + '_green', '') }}"></td>
+                    <td><input type="number" name="{{ day }}_{{ time|lower }}_yellow" class="form-control" value="{{ request.form.get(day + '_' + time|lower + '_yellow', '') }}"></td>
+                </tr>
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="form-group">
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </div>
+</form>
+{% endblock %}

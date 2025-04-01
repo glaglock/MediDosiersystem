@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Willkommen zu Ihrem Medikamentendosiersystem{% endblock %}</h1>
+
+    <h2>Benutzer</h2>
+    <br>
+    {% for user in users %}
+    <a href="{{ url_for('displayUser', user_id=user['user_id']) }}">
+        <button class="btn btn-primary">{{ user['name'] }}</button>
+    </a>
+    <hr>
+    {% endfor %}
+{% endblock %}
