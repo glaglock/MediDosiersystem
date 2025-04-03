@@ -1,6 +1,39 @@
 import sqlite3
+import paho.mqtt.client as mqtt 
+import json
 from flask import Flask, render_template, request, url_for, flash, redirect
 from werkzeug.exceptions import abort
+
+
+# MQTT Setup 
+MQTT_BROKER = "localhost" 
+MQTT_PORT = 1883 
+MQTT_TOPIC_PUBLISH = "esp32/pills"      # Channel where esp32 listens 
+MQTT_TOPIC_SUBSCRIBE = "raspy/updates" 
+
+
+#Initialize MQTT client 
+mqtt_client = mqtt.Client() 
+
+
+def on_connect(client, userdata, flags, rc): 
+    if rc == 0: 
+        print("Connected to MQTT Broker!")
+        client.subscribe(MQTT_TOPIC_SUBSCRIBE) 
+    else: 
+        print(f"Failed to connect, return code {rc}") 
+
+def on_message(client, userdata, msg): 
+    print(f"Received message on {msg.topic}:{msg.payload.decode()}") 
+    
+    
+mqtt_client.on_connect = on_connect
+mqtt_client.on_message = on_message 
+mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60) 
+mqtt_client.loop_start() 
+
+
+
 
 def get_db_connection(): 
     conn = sqlite3.connect('database.db')
@@ -59,10 +92,18 @@ def createUser():
                             INSERT INTO UserPlans (user_id, day_of_week, time_day, pill_id, quantity)
                             VALUES (?, ?, ?, ?, ?)
                         ''', (user_id, day, time, pill_ids[color], quantity))
-        
+                        
+                        
+                    # Publish to MQTT 
+                    mqtt_message = json.dumps({"action": "create", "user_id": user_id, "name": name})
+                    print(f"Publishing to {MQTT_TOPIC_PUBLISH}: {mqtt_message}") 
+                    mqtt_client.publish(MQTT_TOPIC_PUBLISH, mqtt_message)
+                        
+                
+                
         conn.commit()
         conn.close()
-        
+            
         return redirect(url_for('index'))
     return render_template('createUser.html')
 
@@ -132,9 +173,15 @@ def editUser(user_id):
                             SELECT pill_id FROM Pills WHERE color = ?
                         )
                     ''', (quantity, user_id, day, time, color))
+                    
+                        
 
         conn.commit()
         conn.close()
+        
+        
+         
+        
         return redirect(url_for('displayUser', user_id=user_id))
 
     # Fetch user plans for pre-filling the form
