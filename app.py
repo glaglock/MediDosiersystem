@@ -6,7 +6,8 @@ from werkzeug.exceptions import abort
 
 
 # MQTT Setup 
-MQTT_BROKER = "localhost" 
+#MQTT_BROKER = "localhost" # for local communication 
+MQTT_BROKER = "192.168.1.100" # for ESP32 comm 
 MQTT_PORT = 1883 
 MQTT_TOPIC_PUBLISH = "esp32/pills"      # Channel where esp32 listens 
 MQTT_TOPIC_SUBSCRIBE = "raspy/updates" 
@@ -79,31 +80,54 @@ def createUser():
             cursor.execute('INSERT OR IGNORE INTO Pills (color) VALUES (?)', (color,))
             cursor.execute('SELECT pill_id FROM Pills WHERE color = ?', (color,))
             pill_ids[color] = cursor.fetchone()['pill_id']
-
+        
+        user_schedule = []
+        
         # Insert user plans
         days_of_week = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
         times_of_day = ['morning', 'noon', 'evening', 'night']
         for day in days_of_week:
             for time in times_of_day:
+                pill_data = {}
                 for color in pill_colors:
                     quantity = request.form.get(f'{day}_{time}_{color}', 0)
+                
+                    #if quantity > 0: 
+                        #pill_data[color] = quantity 
+                                    
                     if quantity:
                         cursor.execute('''
                             INSERT INTO UserPlans (user_id, day_of_week, time_day, pill_id, quantity)
                             VALUES (?, ?, ?, ?, ?)
                         ''', (user_id, day, time, pill_ids[color], quantity))
-                        
-                        
-                    # Publish to MQTT 
-                    mqtt_message = json.dumps({"action": "create", "user_id": user_id, "name": name})
-                    print(f"Publishing to {MQTT_TOPIC_PUBLISH}: {mqtt_message}") 
-                    mqtt_client.publish(MQTT_TOPIC_PUBLISH, mqtt_message)
-                        
-                
-                
+                                        
+                  
+                        user_schedule.append({
+                            "day": day, 
+                            "time": time, 
+                            "color": color, 
+                            "quantity" : int(quantity)
+                            })
+                          
+                               
+        
+        
+        # Publish to MQTT 
+        mqtt_message = json.dumps({
+        #"action": "create", 
+        "user_id": user_id, 
+        "name": name,
+        "schedule": user_schedule
+        })
+        
+        
+        
+        print(f"Publishing to {MQTT_TOPIC_PUBLISH}: {mqtt_message}") 
+        mqtt_client.publish(MQTT_TOPIC_PUBLISH, mqtt_message)
+        
         conn.commit()
-        conn.close()
-            
+        conn.close()            
+        
         return redirect(url_for('index'))
     return render_template('createUser.html')
 
