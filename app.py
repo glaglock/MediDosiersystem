@@ -7,7 +7,7 @@ from werkzeug.exceptions import abort
 
 # MQTT Setup 
 #MQTT_BROKER = "localhost" # for local communication 
-MQTT_BROKER = "192.168.1.100" # for ESP32 comm 
+MQTT_BROKER = "192.168.178.157" # for ESP32 comm 
 MQTT_PORT = 1883 
 MQTT_TOPIC_PUBLISH = "esp32/pills"      # Channel where esp32 listens 
 MQTT_TOPIC_SUBSCRIBE = "raspy/updates" 
