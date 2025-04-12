@@ -34,8 +34,6 @@ mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
 mqtt_client.loop_start() 
 
 
-
-
 def get_db_connection(): 
     conn = sqlite3.connect('database.db')
     conn.row_factory = sqlite3.Row
@@ -108,9 +106,6 @@ def createUser():
                             "color": color, 
                             "quantity" : int(quantity)
                             })
-                          
-                               
-        
         
         # Publish to MQTT 
         mqtt_message = json.dumps({
@@ -118,9 +113,7 @@ def createUser():
         "user_id": user_id, 
         "name": name,
         "schedule": user_schedule
-        })
-        
-        
+        }) 
         
         print(f"Publishing to {MQTT_TOPIC_PUBLISH}: {mqtt_message}") 
         mqtt_client.publish(MQTT_TOPIC_PUBLISH, mqtt_message)
@@ -197,14 +190,8 @@ def editUser(user_id):
                             SELECT pill_id FROM Pills WHERE color = ?
                         )
                     ''', (quantity, user_id, day, time, color))
-                    
-                        
-
         conn.commit()
         conn.close()
-        
-        
-         
         
         return redirect(url_for('displayUser', user_id=user_id))
 
@@ -234,6 +221,83 @@ def editUser(user_id):
 
     return render_template('editUser.html', user=user, user_plans=user_plans)
 
+
+
+
+def process_mqtt_message(client, userdata, msg):
+    try:
+        # Nachricht vom MQTT-Kanal auslesen
+        payload = msg.payload.decode('utf-8')
+        print(f"Received message on {msg.topic}: {payload}")
+
+        # JSON-Daten aus der Nachricht extrahieren
+        data = json.loads(payload)
+        name = data.get('name')
+        day_of_week = data.get('day')
+
+        if not name or not day_of_week:
+            print("Invalid message: 'name' or 'day' is missing.")
+            return
+
+        # Verbindung zur Datenbank herstellen
+        conn = get_db_connection()
+
+        # Benutzer-ID anhand des Namens abrufen
+        user = conn.execute('SELECT user_id FROM Users WHERE name = ?', (name,)).fetchone()
+        if not user:
+            print(f"User with name '{name}' not found.")
+            conn.close()
+            return
+
+        user_id = user['user_id']
+
+        # Tablettenanzahl für den angegebenen Wochentag abrufen
+        pill_schedule = conn.execute('''
+            SELECT time_day, Pills.color, UserPlans.quantity
+            FROM UserPlans
+            JOIN Pills ON UserPlans.pill_id = Pills.pill_id
+            WHERE UserPlans.user_id = ? AND UserPlans.day_of_week = ?
+        ''', (user_id, day_of_week)).fetchall()
+
+        conn.close()
+
+        # Strukturieren der Daten für die Tageszeiten
+        schedule = {
+            'Morning': {'red': 0, 'blue': 0, 'green': 0, 'yellow': 0},
+            'Noon': {'red': 0, 'blue': 0, 'green': 0, 'yellow': 0},
+            'Evening': {'red': 0, 'blue': 0, 'green': 0, 'yellow': 0},
+            'Night': {'red': 0, 'blue': 0, 'green': 0, 'yellow': 0}
+        }
+
+        # Daten aus der Datenbank in die Struktur einfügen
+        for entry in pill_schedule:
+            time = entry['time_day']
+            color = entry['color']
+            quantity = entry['quantity']
+            if time in schedule:
+                schedule[time][color] = quantity
+
+        # Ergebnisse ausgeben
+        print(f"Pill schedule for {name} on {day_of_week}:")
+        for time, pills in schedule.items():
+            print(f"  {time}: {pills}")
+
+        # Nachricht für den ESP32 vorbereiten
+        mqtt_message = json.dumps({
+            "name": name,
+            "day": day_of_week,
+            "schedule": schedule
+        })
+
+        # Nachricht auf den MQTT-Kanal veröffentlichen
+        MQTT_TOPIC_SCHEDULE = "esp32/schedule"
+        print(f"Publishing to {MQTT_TOPIC_SCHEDULE}: {mqtt_message}")
+        mqtt_client.publish(MQTT_TOPIC_SCHEDULE, mqtt_message)
+
+    except json.JSONDecodeError:
+        print("Failed to decode JSON from the message.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 
 
