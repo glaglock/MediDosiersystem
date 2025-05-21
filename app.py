@@ -26,6 +26,7 @@ def on_connect(client, userdata, flags, rc):
 
 def on_message(client, userdata, msg): 
     print(f"Received message on {msg.topic}:{msg.payload.decode()}") 
+    process_mqtt_message(client, userdata, msg) 
     
     
 mqtt_client.on_connect = on_connect
@@ -236,7 +237,101 @@ def editUser(user_id):
 
 
 
+def process_mqtt_message(client, userdata, msg):
+    try:
+        # Nachricht vom MQTT-Kanal auslesen
+        payload = msg.payload.decode('utf-8')
+        print(f"process Received message on {msg.topic}: {payload}")
 
+        # JSON-Daten aus der Nachricht extrahieren
+        data = json.loads(payload)
+        name = data.get('name')
+        day_of_week = data.get('day')
+        
+        print(f"Name: {name}") 
+        print(f"day: {day_of_week}")
+
+        if not name or not day_of_week:
+            print("Invalid message: 'name' or 'day' is missing.")
+            return
+
+        # Verbindung zur Datenbank herstellen
+        conn = get_db_connection()
+
+        # Benutzer-ID anhand des Namens abrufen
+        user = conn.execute('SELECT user_id FROM Users WHERE name = ?', (name,)).fetchone()
+        if not user:
+            print(f"User with name '{name}' not found.")
+            conn.close()
+            return
+
+        user_id = user['user_id']
+
+        # Tablettenanzahl für den angegebenen Wochentag abrufen
+        pill_schedule = conn.execute('''
+            SELECT time_day, Pills.color, UserPlans.quantity
+            FROM UserPlans
+            JOIN Pills ON UserPlans.pill_id = Pills.pill_id
+            WHERE UserPlans.user_id = ? AND UserPlans.day_of_week = ?
+        ''', (user_id, day_of_week)).fetchall()
+
+        conn.close()
+
+        # Strukturieren der Daten für die Tageszeiten
+        #schedule = {
+         #   'Morning': {'red': 1, 'blue': 1, 'green': 1, 'yellow': 1},
+          #  'Noon': {'red': 0, 'blue': 0, 'green': 0, 'yellow': 0},
+           # 'Evening': {'red': 0, 'blue': 0, 'green': 0, 'yellow': 0},
+            #'Night': {'red': 0, 'blue': 0, 'green': 0, 'yellow': 0}
+        #}
+        
+        schedule = []
+        
+        
+
+        # Daten aus der Datenbank in die Struktur einfügen
+        #for entry in pill_schedule:
+         #   time = entry['time_day']
+          #  color = entry['color']
+           # quantity = entry['quantity']
+            #if time in schedule:
+             #   schedule[time][color] = quantity
+                
+                
+        for entry in pill_schedule: 
+            schedule.append({
+                "time": entry['time_day'], 
+                "color": entry['color'], 
+                "quantity": entry['quantity']
+                })
+
+        # Ergebnisse ausgeben
+        #print(f"Pill schedule for {name} on {day_of_week}:")
+        #for time, pills in schedule.items():
+         #   print(f"  {time}: {pills}")
+            
+        
+        print(f"Pill schedule for {name} on {day_of_week}. {schedule}")
+
+        # Nachricht für den ESP32 vorbereiten
+        mqtt_message = json.dumps({
+            "name": name,
+            "day": day_of_week,
+            "schedule": schedule
+        })
+
+        # Nachricht auf den MQTT-Kanal veröffentlichen
+        MQTT_TOPIC_SCHEDULE = "esp32/pills"
+        print(f"Publishing to {MQTT_TOPIC_SCHEDULE}: {mqtt_message}")
+        mqtt_client.publish(MQTT_TOPIC_SCHEDULE, mqtt_message)
+
+    except json.JSONDecodeError:
+        print("Failed to decode JSON from the message.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+if __name__ == "__main__": 
+    app.run(host="0.0.0.0", port=5000)
 
 
 
